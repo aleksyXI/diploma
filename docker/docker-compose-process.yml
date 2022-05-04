@@ -1,0 +1,29 @@
+version: '3.7'
+
+services:
+  process:
+    build:
+      context: ../
+    networks:
+      diploma-local-network:
+        aliases:
+          - process
+    container_name: process
+    ports:
+      - 18080:8080
+      - 6081:6080
+    environment:
+      JAVA_OPTS: "-Xmx512m -XX:+UseContainerSupport -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:6080 -Dlog4j2.configurationFile=log4j2-local.xml"
+      SERVER_PORT: 8080
+      DB_HOST: postgresdb
+      DB_PORT: 5432
+      DB_NAME: camunda
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_CLOSE_ON_EXIT: "false"
+      TZ: Europe/Moscow
+    restart: always
+
+networks:
+  diploma-local-network:
+    driver: bridge

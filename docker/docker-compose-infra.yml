@@ -1,0 +1,97 @@
+version: '3.7'
+
+services:
+
+  risk-module-stub:
+    build:
+      context: ../../risk-module-stub/
+    networks:
+      diploma-local-network:
+        aliases:
+          - risk-module-stub
+    container_name: wiremock
+    ports:
+      - 18081:8080
+    environment:
+      - TZ=Europe/Moscow
+    volumes:
+      - risk-module-stub-runtime-mappings:/home/wiremock/mappings
+    restart: always
+
+  postgresdb:
+    networks:
+      - diploma-local-network
+    ports:
+      - 15432:5432
+    volumes:
+      - ../../pg_data:/var/lib/postgresql/data/pgdata
+      - ./docker_postgres_init.sql:/docker-entrypoint-initdb.d/docker_postgres_init.sql
+    container_name: postgres
+    hostname: postgres
+    image: postgres:12
+    restart: on-failure:3
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+  camunda-excamad:
+    networks:
+      diploma-local-network:
+        aliases:
+          - excamad
+    ports:
+      - 18082:80
+    container_name: camunda-excamad
+    hostname: camunda-excamad
+    image: kotovdenis/excamad:latest
+    restart: on-failure:3
+
+  zookeeper:
+    image: 'bitnami/zookeeper:latest'
+    container_name: zookeeper
+    networks:
+      diploma-local-network:
+        aliases:
+          - zookeeper
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: 1
+    ports:
+      - 2181:2181
+
+  kafka:
+    image: 'bitnami/kafka:latest'
+    container_name: kafka
+    networks:
+      diploma-local-network:
+        aliases:
+          - kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      ALLOW_PLAINTEXT_LISTENER: 1
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CFG_LISTENERS: CLIENT://:9092,EXTERNAL://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: CLIENT://kafka:9092,EXTERNAL://localhost:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: CLIENT
+    ports:
+      - 9093:9093
+
+  redis:
+    image: redis:6.2.5
+    container_name: redis
+    networks:
+      diploma-local-network:
+        aliases:
+          - redis
+    ports:
+      - 6379:6379
+
+volumes:
+  risk-module-stub-runtime-mappings:
+
+networks:
+  diploma-local-network:
+    driver: bridge
